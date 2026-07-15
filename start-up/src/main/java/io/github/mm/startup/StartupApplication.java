@@ -1,5 +1,6 @@
 package io.github.mm.startup;
 
+import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.event.*;
 import io.micronaut.runtime.Micronaut;
@@ -17,15 +18,19 @@ class LifecycleBean {
 
     private static final Logger log = LoggerFactory.getLogger(LifecycleBean.class);
 
-    public LifecycleBean() {
-        log.info("02 Constructor");
+    private final ExternalClass externalClass;
+
+    public LifecycleBean(ExternalClass externalClass) {
+        log.info("03 Constructor");
+        this.externalClass = externalClass;
     }
 
-    // @PostConstruct is required for BeanInitializedEventListener to fire.
-    // Without it, Micronaut skips the initialization phase entirely.
+    // @PostConstruct is what gives this bean an "initialization phase."
+    // BeanInitializedEventListener only fires for beans that have one —
+    // remove @PostConstruct and step 04 below silently disappears too.
     @PostConstruct
     void postConstruct() {
-        log.info("04 @PostConstruct");
+        log.info("05 @PostConstruct");
     }
 }
 
@@ -36,8 +41,12 @@ class LifecycleBeanInitializedListener implements BeanInitializedEventListener<L
 
     @Override
     public LifecycleBean onInitialized(BeanInitializingEvent<LifecycleBean> event) {
-        log.info("03 BeanInitializedEventListener (fires before @PostConstruct) - depends on @PostConstruct");
-        return event.getBean();
+        log.info("04 BeanInitializedEventListener (fires before @PostConstruct)");
+        LifecycleBean bean = event.getBean();
+        // This is the hook's actual purpose: inspect or replace the bean
+        // BEFORE its own initialization logic runs. A real use case is
+        // injecting a computed default the constructor had no way to know.
+        return bean;
     }
 }
 
@@ -48,7 +57,9 @@ class LifecycleBeanCreatedListener implements BeanCreatedEventListener<Lifecycle
 
     @Override
     public LifecycleBean onCreated(BeanCreatedEvent<LifecycleBean> event) {
-        log.info("05 BeanCreatedEventListener (fires after @PostConstruct)");
+        log.info("06 BeanCreatedEventListener (fires after @PostConstruct)");
+        // Unlike BeanInitializedEventListener, the bean here is fully
+        // initialized.
         return event.getBean();
     }
 }
@@ -60,12 +71,25 @@ class ContextStartupListener {
 
     @EventListener
     void onStartup(StartupEvent event) {
-        log.info("07 StartupEvent (SmartInitializingSingleton / ContextRefreshedEvent analog)");
+        log.info("07 StartupEvent — application context ready");
     }
 
     @EventListener
     void onServerStartup(ServerStartupEvent event) {
-        log.info("08 ServerStartupEvent (ApplicationReadyEvent analog)");
+        log.info("08 ServerStartupEvent — server accepting requests");
+    }
+}
+
+@Factory
+class ExternalClassFactory {
+
+    private static final Logger log = LoggerFactory.getLogger(ExternalClassFactory.class);
+
+    @Bean
+    @Singleton
+    ExternalClass externalClass() {
+        log.info("02 @Bean factory method (produces ExternalClass, required by LifecycleBean's constructor)");
+        return new ExternalClass();
     }
 }
 
@@ -75,22 +99,7 @@ public class StartupApplication {
 
     public static void main(String[] args) {
         log.info("01 Application Context Starting");
-        // eagerInitSingletons(true) forces all @Singleton beans to be constructed at
-        // startup. By default, Micronaut singletons are LAZY — they're only created
-        // on first injection/lookup. Without this flag, LifecycleBean may never be
-        // instantiated, and this entire numbered sequence won't fire as shown.
         Micronaut.build(args).banner(false).eagerInitSingletons(true).start();
-    }
-}
-
-@Factory
-class ExternalClassFactory {
-
-    private static final Logger log = LoggerFactory.getLogger(ExternalClassFactory.class);
-
-    @Singleton
-    ExternalClass externalClass() {
-        log.info("06 @Bean factory method (for external/unmodifiable class), (order depends on classpath scanning)");
-        return new ExternalClass();
+        log.info("09 Application Ready — running until shutdown");
     }
 }

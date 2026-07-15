@@ -41,11 +41,11 @@ The start-up module demonstrates the **Micronaut application startup lifecycle**
 #### Features
 - **Lifecycle Hook Execution Order**
   - Application context starting
+  - `@Factory` + `@Bean` -- Factory method for external/unmodifiable classes (resolved first via dependency)
   - Constructor -- Bean instantiation
   - `BeanInitializedEventListener` -- Fires before `@PostConstruct`
   - `@PostConstruct` -- Jakarta lifecycle callback
   - `BeanCreatedEventListener` -- Fires after `@PostConstruct`
-  - `@Factory` + `@Bean` -- Factory method for external/unmodifiable classes
   - `StartupEvent` -- Context fully loaded (analogous to `SmartInitializingSingleton` + `ContextRefreshedEvent`)
   - `ServerStartupEvent` -- HTTP server ready (analogous to `ApplicationReadyEvent`)
 

@@ -5,7 +5,7 @@ The start-up module demonstrates the **Micronaut application startup lifecycle**
 ## Features
 
 - ✅ **Application Context Starting** -- Entry point, log before Micronaut boots
-- ✅ **`@Factory` + `@Bean`** -- Factory method for external/unmodifiable classes
+- ✅ **`@Factory` + `@Bean`** -- Factory method for external/unmodifiable classes (resolved first via dependency)
 - ✅ **Constructor** -- Bean constructor invoked during instantiation
 - ✅ **BeanInitializedEventListener** -- Fires before `@PostConstruct` (opposite of Spring!)
 - ✅ **@PostConstruct** -- Jakarta lifecycle callback (required for `BeanInitializedEventListener` to fire)
@@ -36,25 +36,25 @@ When you run the application, the startup hooks fire in this exact sequence:
 | Order | Hook | Timing |
 |-------|------|--------|
 | 01 | Application Context Starting | Before Micronaut boots |
-| 02 | Constructor | Bean instantiation |
-| 03 | `BeanInitializedEventListener` | Fires before `@PostConstruct` |
-| 04 | `@PostConstruct` | Jakarta lifecycle callback |
-| 05 | `BeanCreatedEventListener` | Fires after `@PostConstruct` |
-| 06 | `@Factory` `@Bean` method | Factory method for external class |
+| 02 | `@Factory` `@Bean` method | Factory method for external class (dependency resolution) |
+| 03 | Constructor | Bean instantiation |
+| 04 | `BeanInitializedEventListener` | Fires before `@PostConstruct` |
+| 05 | `@PostConstruct` | Jakarta lifecycle callback |
+| 06 | `BeanCreatedEventListener` | Fires after `@PostConstruct` |
 | 07 | `StartupEvent` | All singletons initialized (once) |
 | 08 | `ServerStartupEvent` | HTTP server ready and accepting traffic |
 
-> **Note:** The order of 06 relative to 02-05 is not guaranteed — it depends on classpath scanning order and the dependency graph. If `LifecycleBean` injected `ExternalClass`, Micronaut's dependency resolution would force the `@Factory` method to execute first.
+> **Note:** `02 @Factory` fires before `03 Constructor` because `LifecycleBean` depends on `ExternalClass`. Micronaut's dependency resolution forces the `@Factory` method to execute first to satisfy the dependency.
 
 ### Expected Console Output
 
 ```
 01 Application Context Starting         -> before Micronaut boots
-02 Constructor                          -> bean being instantiated
-03 BeanInitializedEventListener         -> before @PostConstruct (per-bean)
-04 @PostConstruct                       -> jakarta lifecycle callback (per-bean)
-05 BeanCreatedEventListener             -> after @PostConstruct (per-bean)
-06 @Bean factory method                 -> factory method for external class
+02 @Bean factory method                 -> dependency resolved first (LifecycleBean needs ExternalClass)
+03 Constructor                          -> bean being instantiated
+04 BeanInitializedEventListener         -> before @PostConstruct (per-bean)
+05 @PostConstruct                       -> jakarta lifecycle callback (per-bean)
+06 BeanCreatedEventListener             -> after @PostConstruct (per-bean)
 07 StartupEvent                         -> all singletons ready (once)
 08 ServerStartupEvent                   -> HTTP server accepting traffic (last)
 ```
@@ -66,11 +66,21 @@ This module demonstrates the `@Factory` + `@Bean` pattern for creating beans fro
 ```java
 class ExternalClass {}  // No @Singleton - external/unmodifiable
 
+@Singleton
+class LifecycleBean {
+    private final ExternalClass externalClass;
+
+    public LifecycleBean(ExternalClass externalClass) {
+        log.info("03 Constructor");
+        this.externalClass = externalClass;
+    }
+}
+
 @Factory
 class ExternalClassFactory {
     @Singleton
     ExternalClass externalClass() {
-        log.info("06 @Bean factory method (order depends on classpath scanning)");
+        log.info("02 @Bean factory method (dependency resolved first)");
         return new ExternalClass();
     }
 }
