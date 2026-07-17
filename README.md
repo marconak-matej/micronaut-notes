@@ -17,7 +17,7 @@ This project serves as a practical guide to Micronaut 5.x, containing multiple m
 ```
 micronaut-notes/
 ├── start-up/             # Application startup lifecycle hooks and callbacks
-└── [future-modules]      # Placeholder for upcoming modules
+└── shut-down/            # Application shutdown lifecycle hooks and callbacks
 ```
 
 ## Getting Started
@@ -55,6 +55,29 @@ The start-up module demonstrates the **Micronaut application startup lifecycle**
   - `BeanInitializedEventListener` fires **before** `@PostConstruct` (opposite of Spring!)
   - `BeanInitializedEventListener` requires `@PostConstruct` to fire (Spring's `InitializingBean` fires regardless)
   - Post-startup execution via `@EventListener(StartupEvent)` instead of `ApplicationRunner`/`CommandLineRunner`
+
+### 2. Shutdown Module
+
+The shut-down module demonstrates the **Micronaut application shutdown lifecycle**, showcasing every mechanism available for running cleanup code when the application stops. This is the Micronaut equivalent of the Spring Boot shutdown lifecycle module.
+
+#### Features
+- **Shutdown Mechanisms**
+  - `@EventListener(ServerShutdownEvent)` -- HTTP server stopping
+  - `@EventListener(ApplicationShutdownEvent)` -- Application stopping
+  - `@EventListener(ShutdownEvent)` -- Bean context closing
+  - `BeanPreDestroyEventListener<T>` -- Before each bean's destruction
+  - `@PreDestroy` -- Jakarta annotation for local bean cleanup
+  - `LifeCycle.stop()` -- Context shutdown phase
+  - `@Bean(preDestroy="...")` -- Named cleanup for third-party types
+  - JVM shutdown hook -- Last-resort cleanup
+
+- **Key Differences from Spring Boot**
+  - No `ContextClosedEvent` -- Use `@EventListener(ShutdownEvent)` instead
+  - No `SmartLifecycle` -- Use `LifeCycle` interface or `@EventListener(ShutdownEvent)`
+  - No `DisposableBean` -- Use `@PreDestroy` or `LifeCycle`
+  - `ServerShutdownEvent` fires first (server stops before context), Spring fires `ContextClosedEvent` first
+  - `ApplicationShutdownEvent` is specific to `EmbeddedApplication`, Spring has no direct equivalent
+  - `BeanPreDestroyEventListener` provides targeted pre-destroy interception absent in Spring
 
 ## Build and Development
 

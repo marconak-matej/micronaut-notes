@@ -18,6 +18,7 @@
 
     <modules>
         <module>start-up</module>
+        <module>shut-down</module>
     </modules>
 
     <properties>
