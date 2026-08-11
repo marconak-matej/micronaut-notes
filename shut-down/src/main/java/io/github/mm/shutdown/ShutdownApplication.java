@@ -12,10 +12,9 @@ import io.micronaut.runtime.event.annotation.EventListener;
 import io.micronaut.runtime.server.event.ServerShutdownEvent;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @Singleton
 class ShutdownEventsBean {
@@ -57,6 +56,7 @@ class LifeCycleBean implements LifeCycle<LifeCycleBean> {
 
     private static final Logger log = LoggerFactory.getLogger(LifeCycleBean.class);
     private final AtomicBoolean running = new AtomicBoolean(true);
+
     @Override
     public LifeCycleBean start() {
         return this;
